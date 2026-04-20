@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from groq import Groq
 import os
 
 st.set_page_config(
@@ -40,45 +40,45 @@ html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
     overflow: hidden;
     margin-top: 10px;
 }
-.rcard-top-closed  { background: #fff1f1; border-bottom: 2px solid #E24B4A; padding: 14px 18px 12px; }
-.rcard-top-partial { background: #fffbf0; border-bottom: 2px solid #EF9F27; padding: 14px 18px 12px; }
-.rcard-top-open    { background: #f3faf0; border-bottom: 2px solid #639922; padding: 14px 18px 12px; }
-.rcard-top-check   { background: #f0f4ff; border-bottom: 2px solid #378ADD; padding: 14px 18px 12px; }
+.rcard-top-closed  { background:#fff1f1; border-bottom:2px solid #E24B4A; padding:14px 18px 12px; }
+.rcard-top-partial { background:#fffbf0; border-bottom:2px solid #EF9F27; padding:14px 18px 12px; }
+.rcard-top-open    { background:#f3faf0; border-bottom:2px solid #639922; padding:14px 18px 12px; }
+.rcard-top-check   { background:#f0f4ff; border-bottom:2px solid #378ADD; padding:14px 18px 12px; }
 
-.verdict-label-closed  { font-size: 1.25rem; font-weight: 500; color: #A32D2D; margin-bottom: 3px; }
-.verdict-label-partial { font-size: 1.25rem; font-weight: 500; color: #854F0B; margin-bottom: 3px; }
-.verdict-label-open    { font-size: 1.25rem; font-weight: 500; color: #3B6D11; margin-bottom: 3px; }
-.verdict-label-check   { font-size: 1.25rem; font-weight: 500; color: #185FA5; margin-bottom: 3px; }
-.verdict-sub { font-size: 0.78rem; color: #666; }
+.verdict-label-closed  { font-size:1.25rem; font-weight:500; color:#A32D2D; margin-bottom:3px; }
+.verdict-label-partial { font-size:1.25rem; font-weight:500; color:#854F0B; margin-bottom:3px; }
+.verdict-label-open    { font-size:1.25rem; font-weight:500; color:#3B6D11; margin-bottom:3px; }
+.verdict-label-check   { font-size:1.25rem; font-weight:500; color:#185FA5; margin-bottom:3px; }
+.verdict-sub { font-size:0.78rem; color:#666; }
 
-.rcard-body { padding: 14px 18px; font-size: 0.83rem; line-height: 1.8; color: #333; }
+.rcard-body { padding:14px 18px; font-size:0.83rem; line-height:1.8; color:#333; }
 
 .chat-msg-user {
-    background: #dbeafe;
-    border-radius: 12px 12px 3px 12px;
-    padding: 9px 13px;
-    font-size: 0.85rem;
-    color: #1e3a5f;
-    margin-left: auto;
-    max-width: 88%;
-    margin-bottom: 6px;
+    background:#dbeafe;
+    border-radius:12px 12px 3px 12px;
+    padding:9px 13px;
+    font-size:0.85rem;
+    color:#1e3a5f;
+    margin-left:auto;
+    max-width:88%;
+    margin-bottom:6px;
 }
 .chat-msg-ai {
-    background: #f5f5f5;
-    border-radius: 12px 12px 12px 3px;
-    padding: 9px 13px;
-    font-size: 0.85rem;
-    color: #333;
-    line-height: 1.7;
-    max-width: 88%;
-    margin-bottom: 6px;
+    background:#f5f5f5;
+    border-radius:12px 12px 12px 3px;
+    padding:9px 13px;
+    font-size:0.85rem;
+    color:#333;
+    line-height:1.7;
+    max-width:88%;
+    margin-bottom:6px;
 }
 
-.stButton > button { border-radius: 8px; font-weight: 500; }
+.stButton > button { border-radius:8px; font-weight:500; }
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea {
-    border-radius: 8px;
-    border: 1px solid #ddd;
+    border-radius:8px;
+    border:1px solid #ddd;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -203,64 +203,49 @@ SYSTEM_PROMPT = """당신은 서울특별시동부교육지원청 정보공개 �
 
 한국어로, 실무 담당자가 즉시 활용할 수 있도록 명확하게 작성하세요."""
 
-# ── Gemini 클라이언트 ─────────────────────────────────────
+# ── Groq 클라이언트 ───────────────────────────────────────
 @st.cache_resource
-def get_gemini_model():
-    api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+def get_client():
+    api_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
     if not api_key:
         return None
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction=SYSTEM_PROMPT
+    return Groq(api_key=api_key)
+
+def call_ai(messages_list):
+    client = get_client()
+    if not client:
+        return "⚠️ API 키가 설정되지 않았습니다. Streamlit Cloud의 Secrets에서 GROQ_API_KEY를 설정해 주세요."
+    try:
+        full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages_list
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=full_messages,
+            max_tokens=2000,
+            temperature=0.3,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"오류: {str(e)}"
+
+def keyword_query(keyword):
+    prompt = (
+        f'"{keyword}"에 대해 정보공개 판단을 해주세요. '
+        f'반드시 아래 5단계 형식으로 작성해 주세요:\n'
+        f'1. 관련 조항 (정보공개법 제9조 제1항 각 호 + 관련 개별 법령)\n'
+        f'2. 서울특별시교육청 비공개대상정보 세부기준 (E코드, 유형, 페이지)\n'
+        f'3. 판단 근거 및 유사 사례 (행안부 운영안내서 Q번호·페이지, 서울시 매뉴얼 페이지 구분하여 작성)\n'
+        f'4. 실무 처리 방법 (단계별)\n'
+        f'5. 유의사항 (참고용임을 명시, 분쟁 가능성 시 상급자 협의 권장)'
     )
-    return model
+    return call_ai([{"role": "user", "content": prompt}])
 
 # ── 세션 초기화 ──────────────────────────────────────────
-if "chat_session" not in st.session_state:
-    st.session_state.chat_session = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "keyword_result" not in st.session_state:
     st.session_state.keyword_result = None
 if "last_keyword" not in st.session_state:
     st.session_state.last_keyword = ""
-
-def get_chat_session():
-    if st.session_state.chat_session is None:
-        model = get_gemini_model()
-        if model:
-            st.session_state.chat_session = model.start_chat(history=[])
-    return st.session_state.chat_session
-
-def call_ai_keyword(keyword):
-    model = get_gemini_model()
-    if not model:
-        return "⚠️ API 키가 설정되지 않았습니다. Streamlit Cloud의 Secrets에서 GOOGLE_API_KEY를 설정해 주세요."
-    try:
-        prompt = (
-            f'"{keyword}"에 대해 정보공개 판단을 해주세요. '
-            f'반드시 아래 5단계 형식으로 작성해 주세요:\n'
-            f'1. 관련 조항 (정보공개법 제9조 제1항 각 호 + 관련 개별 법령)\n'
-            f'2. 서울특별시교육청 비공개대상정보 세부기준 (E코드, 유형, 페이지)\n'
-            f'3. 판단 근거 및 유사 사례 (행안부 운영안내서 Q번호·페이지, 서울시 매뉴얼 페이지 구분하여 작성)\n'
-            f'4. 실무 처리 방법 (단계별)\n'
-            f'5. 유의사항 (참고용임을 명시, 분쟁 가능성 시 상급자 협의 권장)'
-        )
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"오류: {str(e)}"
-
-def call_ai_chat(user_input):
-    chat = get_chat_session()
-    if not chat:
-        return "⚠️ API 키가 설정되지 않았습니다. Streamlit Cloud의 Secrets에서 GOOGLE_API_KEY를 설정해 주세요."
-    try:
-        response = chat.send_message(user_input)
-        return response.text
-    except Exception as e:
-        return f"오류: {str(e)}"
 
 def parse_verdict(text):
     t = text[:100]
@@ -279,10 +264,10 @@ def render_result_card(result_text, verdict_type):
     }.get(verdict_type, "rcard-top-check")
 
     label_map = {
-        "closed":  ("비공개",          "verdict-label-closed"),
-        "partial": ("부분공개",         "verdict-label-partial"),
-        "open":    ("공개",             "verdict-label-open"),
-        "check":   ("추가 확인 필요",   "verdict-label-check")
+        "closed":  ("비공개",        "verdict-label-closed"),
+        "partial": ("부분공개",       "verdict-label-partial"),
+        "open":    ("공개",           "verdict-label-open"),
+        "check":   ("추가 확인 필요", "verdict-label-check")
     }
     label, label_class = label_map.get(verdict_type, ("추가 확인 필요", "verdict-label-check"))
 
@@ -349,7 +334,7 @@ with col_left:
     if search_btn and keyword:
         st.session_state.last_keyword = keyword
         with st.spinner("법령·세부기준·매뉴얼 검토 중..."):
-            result = call_ai_keyword(keyword)
+            result = keyword_query(keyword)
             st.session_state.keyword_result = result
 
     if st.session_state.keyword_result:
@@ -363,7 +348,7 @@ with col_left:
             init_msg = f'"{kw}" 관련 추가 질문입니다. 부분공개가 가능한 경우 구체적인 처리 방법을 알려주세요.'
             st.session_state.messages.append({"role": "user", "content": init_msg})
             with st.spinner("답변 생성 중..."):
-                reply = call_ai_chat(init_msg)
+                reply = call_ai(st.session_state.messages)
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
 
@@ -410,13 +395,12 @@ with col_right:
     if send and user_input.strip():
         st.session_state.messages.append({"role": "user", "content": user_input.strip()})
         with st.spinner("법령·매뉴얼 검토 중..."):
-            reply = call_ai_chat(user_input.strip())
+            reply = call_ai(st.session_state.messages)
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.rerun()
 
     if clear:
         st.session_state.messages = []
-        st.session_state.chat_session = None
         st.rerun()
 
 # ── 하단 ─────────────────────────────────────────────────
