@@ -1,0 +1,10 @@
+# API 키가 담긴 secrets 파일은 절대 GitHub에 올리지 않습니다
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
