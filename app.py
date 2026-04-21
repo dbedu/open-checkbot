@@ -491,36 +491,85 @@ def get_client():
         return None
     return Groq(api_key=api_key)
 
-def call_ai(messages_list, system=None):
+def call_ai(messages_list, system=None, model="llama-3.1-8b-instant"):
     client = get_client()
     if not client:
         return "⚠️ API 키가 설정되지 않았습니다."
     try:
         full_messages = [{"role": "system", "content": system}] + messages_list
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=model,
             messages=full_messages,
-            max_tokens=2500,
+            max_tokens=2000,
             temperature=0.2,
         )
         return response.choices[0].message.content
     except Exception as e:
         return f"오류: {str(e)}"
 
-# ── 단일 검증 함수 ────────────────────────────────────────
+# ── 2단계 검증 함수 ───────────────────────────────────────
+STEP2_VERIFY_PROMPT = """당신은 정보공개 판단 결과를 검토하는 검증 에이전트입니다.
+아래 1단계 판단 결과를 확인하고, 문제가 있으면 수정하여 최종 결과를 출력합니다.
+
+## 검토 항목
+1. [최종판정: ...] 태그가 정확히 있는가? (공개/비공개/부분공개 중 하나)
+2. [판정요약: ...] 태그가 있는가?
+3. 비공개/부분공개인 경우 — 1.법적근거 / 2.판단근거 / 3.관련사례 / 4.참고판례 / 5.실무처리방법 섹션이 모두 있는가?
+4. 공개인 경우 — 유사사례 섹션과 안내사항이 있는가?
+5. 판정 결과가 명확한가? (모호하거나 "추가확인필요"가 부적절하게 사용되었는가?)
+
+## 처리 규칙
+- 내용이 충실하고 형식이 맞으면 그대로 출력
+- 형식 누락 시 보완하여 출력
+- 판정이 불명확하면 법령 근거를 바탕으로 명확히 재판정
+- 출력은 수정된 최종 결과만 출력 (검토 과정 설명 불필요)
+
+한국어로 작성하세요."""
+
 def run_keyword_check(keyword, progress_placeholder):
-    """API 1회 호출로 최종 판정 결과 바로 반환"""
-    progress_placeholder.markdown("🔍 **법령·세부기준·매뉴얼 검토 중...**")
-    prompt = (
+    """2단계 검증: 1단계(판단) → 2단계(검증·보완)"""
+
+    # 1단계: 판단 생성
+    progress_placeholder.markdown("🔍 **1단계: 법령·세부기준 검토 중...**")
+    prompt1 = (
         f'"{keyword}"에 대해 정보공개 판단을 해주세요. '
         f'반드시 지정된 출력 형식(공개/비공개/부분공개)에 맞게 작성하세요.'
     )
-    result = call_ai([{"role": "user", "content": prompt}], system=STEP1_SYSTEM_PROMPT)
+    step1 = call_ai(
+        [{"role": "user", "content": prompt1}],
+        system=STEP1_SYSTEM_PROMPT,
+        model="llama-3.1-8b-instant"
+    )
+
+    # 오류 시 바로 반환
+    if step1.startswith("오류:") or step1.startswith("⚠️"):
+        progress_placeholder.markdown("❌ **오류 발생**")
+        return {"step3": step1}
+
+    # 2단계: 검증·보완
+    progress_placeholder.markdown("⚖️ **2단계: 결과 검증 및 보완 중...**")
+    prompt2 = f"""다음 1단계 판단 결과를 검토하고 최종 결과를 출력하세요.
+
+키워드: "{keyword}"
+
+1단계 판단 결과:
+{step1}"""
+    step2 = call_ai(
+        [{"role": "user", "content": prompt2}],
+        system=STEP2_VERIFY_PROMPT,
+        model="llama-3.1-8b-instant"
+    )
+
+    # 2단계도 오류면 1단계 결과 사용
+    if step2.startswith("오류:") or step2.startswith("⚠️"):
+        progress_placeholder.markdown("✅ **검토 완료!** (1단계 결과 사용)")
+        return {"step3": step1}
+
     progress_placeholder.markdown("✅ **검토 완료!**")
-    return {"step3": result}
+    return {"step3": step2}
 
 def case_query(messages_list):
-    return call_ai(messages_list, system=CASE_SYSTEM_PROMPT)
+    return call_ai(messages_list, system=CASE_SYSTEM_PROMPT, model="llama-3.1-8b-instant")
 
 # ── 세션 초기화 ──────────────────────────────────────────
 if "messages" not in st.session_state:
