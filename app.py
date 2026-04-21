@@ -498,7 +498,7 @@ def call_ai(messages_list, system=None):
     try:
         full_messages = [{"role": "system", "content": system}] + messages_list
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=full_messages,
             max_tokens=2500,
             temperature=0.2,
