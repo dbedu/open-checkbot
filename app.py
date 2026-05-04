@@ -566,7 +566,7 @@ def get_client():
         return None
     return Groq(api_key=api_key)
 
-def call_ai(messages_list, system=None, model="llama-3.1-8b-instant"):
+def call_ai(messages_list, system=None, model="llama-3.3-70b-versatile"):
     client = get_client()
     if not client:
         return "⚠️ API 키가 설정되지 않았습니다."
@@ -613,7 +613,7 @@ def run_keyword_check(keyword, progress_placeholder):
     step1 = call_ai(
         [{"role": "user", "content": prompt1}],
         system=STEP1_SYSTEM_PROMPT,
-        model="llama-3.1-8b-instant"
+        model="llama-3.3-70b-versatile"
     )
 
     # 오류 시 바로 반환
@@ -632,7 +632,7 @@ def run_keyword_check(keyword, progress_placeholder):
     step2 = call_ai(
         [{"role": "user", "content": prompt2}],
         system=STEP2_VERIFY_PROMPT,
-        model="llama-3.1-8b-instant"
+        model="llama-3.3-70b-versatile"
     )
 
     # 2단계도 오류면 1단계 결과 사용
@@ -644,7 +644,7 @@ def run_keyword_check(keyword, progress_placeholder):
     return {"step3": step2}
 
 def case_query(messages_list):
-    return call_ai(messages_list, system=CASE_SYSTEM_PROMPT, model="llama-3.1-8b-instant")
+    return call_ai(messages_list, system=CASE_SYSTEM_PROMPT, model="llama-3.3-70b-versatile")
 
 # ── 세션 초기화 ──────────────────────────────────────────
 if "messages" not in st.session_state:
