@@ -162,6 +162,15 @@ html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
     border-radius:8px;
     border:1px solid #ddd;
 }
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    .main-header h1 { font-size: 1.3rem !important; }
+    .main-header p  { font-size: 0.82rem !important; }
+    .rcard-body     { font-size: 0.8rem !important; }
+    .detail-section { padding: 10px 12px !important; }
+    [data-testid="column"] { min-width: 100% !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -550,14 +559,6 @@ def record_keyword(keyword, verdict, confidence="중"):
     })
     save_stats(stats)
 
-def record_case(query):
-    stats = load_stats()
-    stats["cases"].append({
-        "query": query[:80],
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M")
-    })
-    save_stats(stats)
-
 # ── Groq 클라이언트 ───────────────────────────────────────
 @st.cache_resource
 def get_client():
@@ -643,23 +644,15 @@ def run_keyword_check(keyword, progress_placeholder):
     progress_placeholder.markdown("✅ **검토 완료!**")
     return {"step3": step2}
 
-def case_query(messages_list):
-    return call_ai(messages_list, system=CASE_SYSTEM_PROMPT, model="llama-3.3-70b-versatile")
-
 # ── 세션 초기화 ──────────────────────────────────────────
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 if "keyword_result" not in st.session_state:
     st.session_state.keyword_result = None
 if "verification_results" not in st.session_state:
     st.session_state.verification_results = None
 if "last_keyword" not in st.session_state:
     st.session_state.last_keyword = ""
-if "trigger_search" not in st.session_state:
-    st.session_state.trigger_search = False
-# 버튼 클릭으로 선택된 키워드 임시 저장 (확인하기 전까지)
-if "selected_example" not in st.session_state:
-    st.session_state.selected_example = ""
+if "quick_selected" not in st.session_state:
+    st.session_state.quick_selected = None
 
 def parse_verdict(text):
     t = text[:150]
@@ -820,52 +813,54 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-col_left, col_right = st.columns([1, 1], gap="large")
+col_left, col_right = st.columns([3, 2], gap="large")
+
+# 자주 묻는 사례 + 간략 판정 데이터 (오른쪽 패널용)
+QUICK_EXAMPLES = [
+    {"kw": "학폭위 회의록",    "verdict": "closed",  "label": "비공개",   "basis": "제1호·제6호 (학폭법 제21조)"},
+    {"kw": "면접채점표",       "verdict": "closed",  "label": "비공개",   "basis": "제5호 (E5-03)"},
+    {"kw": "감사계획서",       "verdict": "closed",  "label": "비공개",   "basis": "제5호 (불시감사·감독 계획)"},
+    {"kw": "청사 평면도",      "verdict": "closed",  "label": "비공개",   "basis": "제2호 (E2-06, 보안시설 도면)"},
+    {"kw": "청사 입면도",      "verdict": "open",    "label": "공개",     "basis": "외관 도면은 공개 원칙"},
+    {"kw": "교사 징계서류",    "verdict": "closed",  "label": "비공개",   "basis": "제1호·제6호 (E1-16, E6-07)"},
+    {"kw": "예산안(미확정)",   "verdict": "closed",  "label": "비공개",   "basis": "제5호 (E5-10, 확정 전)"},
+    {"kw": "CCTV 영상",        "verdict": "partial", "label": "부분공개", "basis": "제6호 (타인 모자이크 후 공개)"},
+    {"kw": "근무성적평정",     "verdict": "closed",  "label": "비공개",   "basis": "제6호 (E6-09)"},
+    {"kw": "입찰 예정가격",    "verdict": "closed",  "label": "비공개",   "basis": "제5호 (E5-04)"},
+    {"kw": "감사결과보고서",   "verdict": "open",    "label": "공개",     "basis": "감사 완료 후 원칙적 공개"},
+    {"kw": "인사위원회 회의록","verdict": "closed",  "label": "비공개",   "basis": "제5호·제6호 (E5-11)"},
+    {"kw": "학교폭력 사안조사","verdict": "closed",  "label": "비공개",   "basis": "제1호·제6호 (학폭법 제21조)"},
+    {"kw": "교과서 채택현황",  "verdict": "closed",  "label": "비공개",   "basis": "제7호 (출판사 영업상 비밀)"},
+    {"kw": "교습비 조정위 회의록","verdict": "partial","label": "부분공개","basis": "제5·6호 (발언자 성명 제외)"},
+    {"kw": "석면공사 현황",    "verdict": "open",    "label": "공개",     "basis": "공개 원칙 (홈페이지 안내)"},
+    {"kw": "개인 근무평정(본인)","verdict": "open",  "label": "공개",     "basis": "승진규정 제26조 (본인 청구)"},
+    {"kw": "소청심사위 회의록","verdict": "closed",  "label": "비공개",   "basis": "제5호·제6호 (E5-10)"},
+]
+
+verdict_colors_map = {
+    "closed":  {"bg": "#fff1f1", "border": "#E24B4A", "text": "#A32D2D", "badge_bg": "#fde8e8"},
+    "partial": {"bg": "#fffbf0", "border": "#EF9F27", "text": "#854F0B", "badge_bg": "#fef3dc"},
+    "open":    {"bg": "#f3faf0", "border": "#639922", "text": "#3B6D11", "badge_bg": "#e6f4df"},
+}
 
 # ━━━━ 왼쪽: 공개/비공개 검토하기 ━━━━━━━━━━━━━━━━━━━━━━━━
 with col_left:
     st.markdown("### 🔍 공개/비공개 검토하기")
+    st.markdown('<div class="input-label">키워드 직접 입력</div>', unsafe_allow_html=True)
 
-    # 1. 직접 입력하기
-    st.markdown('<div class="input-label">1. 직접 입력하기</div>', unsafe_allow_html=True)
-
-    # 선택된 예시가 있으면 입력창에 반영
-    default_val = st.session_state.selected_example if st.session_state.selected_example else ""
     keyword_input = st.text_input(
         "키워드 직접 입력",
-        value=default_val,
         placeholder="예: 학폭위 회의록, 면접채점표, 청사 평면도",
         label_visibility="collapsed",
         key="keyword_text_input"
     )
 
-    # 2. 자주 묻는 사례
-    st.markdown('<div class="input-label" style="margin-top:14px">2. 자주 묻는 사례</div>', unsafe_allow_html=True)
-    examples = [
-        "학폭위 회의록", "면접채점표", "감사계획서",
-        "청사 평면도", "교사 징계서류", "예산안(미확정)",
-        "CCTV 영상", "근무성적평정", "입찰 예정가격"
-    ]
-    btn_cols = st.columns(3)
-    for i, ex in enumerate(examples):
-        # 현재 선택된 항목은 강조 표시
-        btn_label = f"✓ {ex}" if st.session_state.selected_example == ex else ex
-        if btn_cols[i % 3].button(btn_label, key=f"ex_{i}", use_container_width=True):
-            st.session_state.selected_example = ex
-            st.rerun()
-
-    st.markdown("")
-
-    # 확인하기 버튼
     search_btn = st.button("확인하기", type="primary", use_container_width=True)
 
     if search_btn:
-        # 직접 입력 우선, 없으면 선택된 예시 키워드 사용
-        kw = keyword_input.strip() or st.session_state.selected_example
+        kw = keyword_input.strip()
         if kw:
             st.session_state.last_keyword = kw
-            st.session_state.selected_example = ""  # 선택 초기화
-
             progress_placeholder = st.empty()
             with st.spinner(f"'{kw}' 검토 중..."):
                 results = run_keyword_check(kw, progress_placeholder)
@@ -876,64 +871,56 @@ with col_left:
             progress_placeholder.empty()
             st.rerun()
         else:
-            st.warning("키워드를 입력하거나 자주 묻는 사례에서 선택해 주세요.")
+            st.warning("키워드를 입력해 주세요.")
 
     if st.session_state.keyword_result:
         result_text = st.session_state.keyword_result
         verdict_type = parse_verdict(result_text)
         render_result_card(result_text, verdict_type)
 
-# ━━━━ 오른쪽: 유사사례 확인하기 ━━━━━━━━━━━━━━━━━━━━━━━━━
+# ━━━━ 오른쪽: 자주 묻는 사례 패널 ━━━━━━━━━━━━━━━━━━━━━━━
 with col_right:
-    st.markdown("### 💬 유사사례 확인하기")
+    st.markdown("### 📋 자주 묻는 사례")
+    st.markdown('<div style="font-size:0.78rem;color:#888;margin-bottom:10px;">키워드를 클릭하면 판정 결과를 확인할 수 있습니다</div>', unsafe_allow_html=True)
 
-    with st.form("chat_form", clear_on_submit=True):
-        user_input = st.text_area(
-            "상황 입력",
-            placeholder="구체적인 상황을 입력하세요",
-            height=100,
-            label_visibility="collapsed"
-        )
-        col_s, col_c = st.columns([3, 1])
-        send  = col_s.form_submit_button("확인하기", type="primary", use_container_width=True)
-        clear = col_c.form_submit_button("초기화", use_container_width=True)
+    # 선택된 빠른 예시 상태
+    if "quick_selected" not in st.session_state:
+        st.session_state.quick_selected = None
 
-    if send and user_input.strip():
-        st.session_state.messages.append({"role": "user", "content": user_input.strip()})
-        with st.spinner("유사 사례 검토 중..."):
-            reply = case_query(st.session_state.messages)
-            record_case(user_input.strip())
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-        st.rerun()
+    for item in QUICK_EXAMPLES:
+        c = verdict_colors_map.get(item["verdict"], verdict_colors_map["open"])
+        is_selected = st.session_state.quick_selected == item["kw"]
 
-    if clear:
-        st.session_state.messages = []
-        st.rerun()
+        # 키워드 버튼
+        if st.button(
+            item["kw"],
+            key=f"quick_{item['kw']}",
+            use_container_width=True,
+        ):
+            if st.session_state.quick_selected == item["kw"]:
+                st.session_state.quick_selected = None  # 토글 닫기
+            else:
+                st.session_state.quick_selected = item["kw"]
+            st.rerun()
 
-    chat_container = st.container(height=480)
-    with chat_container:
-        if not st.session_state.messages:
-            st.markdown("""
-            <div style="color:#bbb;font-size:0.84rem;text-align:center;padding-top:80px;line-height:1.9;">
-                정보공개 청구 상황을 입력하시면<br>
-                행정안전부 운영안내서와 서울특별시 매뉴얼의<br>
-                유사 사례를 찾아 안내해 드립니다.<br><br>
-                예: "학부모가 학폭위 가해학생 징계 결과를 청구했습니다."<br>
-                예: "감사 진행 중인 학교 감사계획서를 언론사에서 청구했습니다."
+        # 선택된 항목 → 간략 결과 인라인 표시
+        if is_selected:
+            st.markdown(f"""
+            <div style="
+                background:{c['bg']};
+                border-left:3px solid {c['border']};
+                border-radius:0 6px 6px 0;
+                padding:8px 12px;
+                margin:-6px 0 6px 0;
+                font-size:0.8rem;
+                line-height:1.7;
+            ">
+                <span style="font-weight:600;color:{c['text']}">{item['label']}</span>
+                <span style="color:#666;margin-left:8px;font-size:0.75rem">{item['basis']}</span>
             </div>
             """, unsafe_allow_html=True)
         else:
-            for msg in st.session_state.messages:
-                if msg["role"] == "user":
-                    st.markdown(
-                        f'<div class="chat-msg-user">{msg["content"]}</div>',
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.markdown(
-                        f'<div class="chat-msg-ai">{msg["content"].replace(chr(10), "<br>")}</div>',
-                        unsafe_allow_html=True
-                    )
+            st.markdown('<div style="margin-bottom:2px"></div>', unsafe_allow_html=True)
 
 # ── 통계 섹션 ─────────────────────────────────────────────
 st.markdown("---")
@@ -946,13 +933,14 @@ verdict_labels = {
 with st.expander("📊 검색 통계 보기"):
     stats = load_stats()
     keywords = stats.get("keywords", [])
-    cases    = stats.get("cases", [])
-    total    = len(keywords) + len(cases)
+    total    = len(keywords)
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("공개/비공개 검토", f"{len(keywords)}회")
-    c2.metric("유사사례 검색", f"{len(cases)}회")
-    c3.metric("총 이용 횟수", f"{total}회")
+    c1, c2 = st.columns(2)
+    c1.metric("공개/비공개 검토", f"{total}회")
+
+    verdict_counter = Counter([k["verdict"] for k in keywords])
+    dominant = verdict_counter.most_common(1)
+    c2.metric("가장 많은 판정", verdict_labels.get(dominant[0][0], "-") if dominant else "-")
 
     st.markdown("")
 
@@ -975,7 +963,6 @@ with st.expander("📊 검색 통계 보기"):
 
         with col_stat2:
             st.markdown("**판정 결과 분포**")
-            verdict_counter = Counter([k["verdict"] for k in keywords])
             verdict_colors = {
                 "closed": "#E24B4A", "partial": "#EF9F27",
                 "open": "#639922", "check": "#378ADD"
@@ -1009,19 +996,6 @@ with st.expander("📊 검색 통계 보기"):
             )
     else:
         st.info("아직 검색 데이터가 없습니다.")
-
-    if cases:
-        st.markdown("")
-        st.markdown("**유사사례 검색 최근 10건**")
-        recent_cases = cases[-10:][::-1]
-        for c in recent_cases:
-            st.markdown(
-                f'<div style="font-size:0.8rem;padding:5px 0;border-bottom:0.5px solid #f0f0f0;">'
-                f'<span style="color:#999;margin-right:10px">{c["time"]}</span>'
-                f'<span>{c["query"]}</span>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
 
 # ── 하단 ─────────────────────────────────────────────────
 st.markdown("""
