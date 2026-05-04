@@ -52,9 +52,9 @@ html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
 .verdict-label-partial { font-size:1.25rem; font-weight:500; color:#854F0B; margin-bottom:3px; }
 .verdict-label-open    { font-size:1.25rem; font-weight:500; color:#3B6D11; margin-bottom:3px; }
 .verdict-label-check   { font-size:1.25rem; font-weight:500; color:#185FA5; margin-bottom:3px; }
-.verdict-sub { font-size:0.78rem; color:#666; }
+.verdict-sub { font-size:0.88rem; color:#666; }
 
-.rcard-body { padding:14px 18px; font-size:0.83rem; line-height:1.8; color:#333; }
+.rcard-body { padding:14px 18px; font-size:0.93rem; line-height:1.8; color:#333; }
 
 .detail-section {
     background: #fafbfc;
@@ -64,7 +64,7 @@ html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
     margin-bottom: 12px;
 }
 .detail-section-title {
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 600;
     color: #1a4a8a;
     margin-bottom: 8px;
@@ -72,8 +72,8 @@ html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
     border-bottom: 1px solid #e0e0e0;
 }
 .detail-section-content {
-    font-size: 0.82rem;
-    line-height: 1.75;
+    font-size: 0.92rem;
+    line-height: 1.8;
     color: #444;
 }
 
@@ -84,7 +84,7 @@ html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
     border-radius: 4px;
     padding: 12px 16px;
     margin-top: 16px;
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     color: #555;
     line-height: 1.6;
 }
@@ -817,24 +817,24 @@ col_left, col_right = st.columns([3, 2], gap="large")
 
 # 자주 묻는 사례 + 간략 판정 데이터 (오른쪽 패널용)
 QUICK_EXAMPLES = [
-    {"kw": "학폭위 회의록",    "verdict": "closed",  "label": "비공개",   "basis": "제1호·제6호 (학폭법 제21조)"},
-    {"kw": "면접채점표",       "verdict": "closed",  "label": "비공개",   "basis": "제5호 (E5-03)"},
-    {"kw": "감사계획서",       "verdict": "closed",  "label": "비공개",   "basis": "제5호 (불시감사·감독 계획)"},
-    {"kw": "청사 평면도",      "verdict": "closed",  "label": "비공개",   "basis": "제2호 (E2-06, 보안시설 도면)"},
-    {"kw": "청사 입면도",      "verdict": "open",    "label": "공개",     "basis": "외관 도면은 공개 원칙"},
-    {"kw": "교사 징계서류",    "verdict": "closed",  "label": "비공개",   "basis": "제1호·제6호 (E1-16, E6-07)"},
-    {"kw": "예산안(미확정)",   "verdict": "closed",  "label": "비공개",   "basis": "제5호 (E5-10, 확정 전)"},
-    {"kw": "CCTV 영상",        "verdict": "partial", "label": "부분공개", "basis": "제6호 (타인 모자이크 후 공개)"},
-    {"kw": "근무성적평정",     "verdict": "closed",  "label": "비공개",   "basis": "제6호 (E6-09)"},
-    {"kw": "입찰 예정가격",    "verdict": "closed",  "label": "비공개",   "basis": "제5호 (E5-04)"},
-    {"kw": "감사결과보고서",   "verdict": "open",    "label": "공개",     "basis": "감사 완료 후 원칙적 공개"},
-    {"kw": "인사위원회 회의록","verdict": "closed",  "label": "비공개",   "basis": "제5호·제6호 (E5-11)"},
-    {"kw": "학교폭력 사안조사","verdict": "closed",  "label": "비공개",   "basis": "제1호·제6호 (학폭법 제21조)"},
-    {"kw": "교과서 채택현황",  "verdict": "closed",  "label": "비공개",   "basis": "제7호 (출판사 영업상 비밀)"},
-    {"kw": "교습비 조정위 회의록","verdict": "partial","label": "부분공개","basis": "제5·6호 (발언자 성명 제외)"},
-    {"kw": "석면공사 현황",    "verdict": "open",    "label": "공개",     "basis": "공개 원칙 (홈페이지 안내)"},
-    {"kw": "개인 근무평정(본인)","verdict": "open",  "label": "공개",     "basis": "승진규정 제26조 (본인 청구)"},
-    {"kw": "소청심사위 회의록","verdict": "closed",  "label": "비공개",   "basis": "제5호·제6호 (E5-10)"},
+    {"kw": "학폭위 회의록",        "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제1호 / 학교폭력예방법 제21조"},
+    {"kw": "면접채점표",           "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제5호 / 서울시교육청 비공개세부기준 E5-03"},
+    {"kw": "감사계획서",           "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제5호 / 서울시교육청 비공개세부기준 E5-02"},
+    {"kw": "청사 평면도",          "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제2호 / 서울시교육청 비공개세부기준 E2-06"},
+    {"kw": "청사 입면도(외관)",    "verdict": "open",    "label": "공개",     "basis": "서울시 정보공개 업무매뉴얼(2026) p.91 — 입면도(외관)는 공개"},
+    {"kw": "교사 징계서류",        "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제1호·제6호 / 서울시교육청 비공개세부기준 E1-16·E6-07"},
+    {"kw": "예산안(미확정)",       "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제5호 / 서울시교육청 비공개세부기준 E5-10"},
+    {"kw": "CCTV 영상",            "verdict": "partial", "label": "부분공개", "basis": "정보공개법 제9조제1항제6호 / 행안부 운영안내서(2024) Q.077 — 타인 모자이크 후 부분공개"},
+    {"kw": "근무성적평정",         "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제6호 / 서울시교육청 비공개세부기준 E6-09"},
+    {"kw": "입찰 예정가격",        "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제5호 / 서울시교육청 비공개세부기준 E5-04"},
+    {"kw": "감사결과보고서",       "verdict": "open",    "label": "공개",     "basis": "행안부 운영안내서(2024) Q.062 / 대법원 2022두45586 — 완료된 감사결과 원칙 공개"},
+    {"kw": "인사위원회 회의록",    "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제5호·제6호 / 서울시교육청 비공개세부기준 E5-11"},
+    {"kw": "학교폭력 사안조사보고","verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제1호·제6호 / 학교폭력예방법 제21조"},
+    {"kw": "교과서 채택현황",      "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제7호 / 2023 정보공개 연차보고서 교육청 비공개 사례"},
+    {"kw": "교습비 조정위 회의록", "verdict": "partial", "label": "부분공개", "basis": "정보공개법 제9조제1항제5호·제6호 / 행안부 운영안내서(2024) Q.070 — 발언자 성명 삭제 후 부분공개"},
+    {"kw": "석면공사 현황",        "verdict": "open",    "label": "공개",     "basis": "정보공개법 제3조(공개 원칙) / 서울시교육청 교육시설안전과 홈페이지 사전공표"},
+    {"kw": "근무평정(본인 청구)",  "verdict": "open",    "label": "공개",     "basis": "교육공무원 승진규정 제26조 / 행안부 운영안내서(2024) Q.069"},
+    {"kw": "소청심사위 회의록",    "verdict": "closed",  "label": "비공개",   "basis": "정보공개법 제9조제1항제5호·제6호 / 서울시교육청 비공개세부기준 E5-10"},
 ]
 
 verdict_colors_map = {
@@ -910,13 +910,13 @@ with col_right:
                 background:{c['bg']};
                 border-left:3px solid {c['border']};
                 border-radius:0 6px 6px 0;
-                padding:8px 12px;
+                padding:9px 13px;
                 margin:-6px 0 6px 0;
-                font-size:0.8rem;
-                line-height:1.7;
+                font-size:0.9rem;
+                line-height:1.75;
             ">
                 <span style="font-weight:600;color:{c['text']}">{item['label']}</span>
-                <span style="color:#666;margin-left:8px;font-size:0.75rem">{item['basis']}</span>
+                <span style="color:#555;margin-left:8px;font-size:0.85rem">{item['basis']}</span>
             </div>
             """, unsafe_allow_html=True)
         else:
